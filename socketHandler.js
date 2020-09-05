@@ -45,7 +45,7 @@ module.exports =  {
 
         ss(client).on('streamMessage', function(stream, data, ack) {
             console.log(`Stream request`);
-            let clientStream = ss.createStream();
+            let clientStream = ss.createStream({objectMode:true});
             clientStream.pipe(stream);
             data.from = NodeClient.deviceId;
             ss(NodeClient.socket).emit('streamMessage', clientStream, data, typeof ack === "function" ? function(res){
