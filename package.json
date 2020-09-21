@@ -2,7 +2,7 @@
   "name": "nclient-module-server",
   "id": "server",
   "title": "Server",
-  "version": "1.0.4",
+  "version": "1.0.5",
   "description": "Simple web server to serve static apps and allow socket connections",
   "main": "index.js",
   "scripts": {
