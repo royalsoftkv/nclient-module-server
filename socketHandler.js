@@ -75,9 +75,15 @@ module.exports =  {
         });
 
         client.on('execClientMethod', (method, params, ack)=> {
-            if(typeof global[method] !== "undefined") {
-                let res = global[method](params)
-                ack(res)
+            let fn = global[method]
+            if(typeof fn !== "undefined") {
+                const isAsync = (fn.constructor.name === "AsyncFunction");
+                if(isAsync) {
+                    let res = global[method](params)
+                    ack(res)
+                } else {
+                    global[method](params, ack)
+                }
             }
         })
     },
