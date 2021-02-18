@@ -2,21 +2,23 @@
   "name": "nclient-module-server",
   "id": "server",
   "title": "Server",
-  "version": "1.0.5",
+  "version": "1.0.14",
   "description": "Simple web server to serve static apps and allow socket connections",
   "main": "index.js",
   "scripts": {
-    "build": "rm -f nclient-module-server-*.tgz && npm pack && cp nclient-module-server-*.tgz ../../ncloud/public/modules/nclient-module-server.tgz"
+    "build": "rm -f nclient-module-server-*.tgz && npm pack && cp nclient-module-server-*.tgz nclient-module-server.tgz",
+    "publish": "curl -F \"file=@./nclient-module-server.tgz\" http://159.69.2.203:3030/upload"
   },
   "author": "",
   "license": "ISC",
   "dependencies": {
-    "axios": "^0.19.2",
+    "axios": "^0.20.0",
     "dotenv": "^8.2.0",
     "express": "^4.17.1",
     "http-auth": "^4.1.2",
-    "nclient-lib": "git+https://github.com/royalsoftkv/nclient-lib.git",
+    "nclient-lib": "http://159.69.2.203:3030/nclient-lib.tgz",
     "socket.io": "^2.3.0",
     "socket.io-stream": "^0.9.1"
-  }
+  },
+  "ncloud-type": "module"
 }

@@ -5,6 +5,10 @@ const clientRegistry = require("./clientRegistry");
 const NodeClient = require('nclient-lib');
 const ss = require('socket.io-stream');
 
+global.getDeviceId = (params, ack) => {
+    ack(NodeClient.deviceId)
+}
+
 module.exports =  {
     // eslint-disable-next-line no-unused-vars
     processSocket(client) {
@@ -14,21 +18,16 @@ module.exports =  {
             clientRegistry.remove(client);
             //eslint-disable-next-line no-console
             console.log('disconnected client');
-            //NodeClient.sendRequest({to:CONNECT_NODE,message:'disconnectedClient',params:client.id});
         });
 
-        client.on('requestDeviceMethod', (method, deviceId,...params) => {
-            console.log(`Received requestDeviceMethod method: ${method} to deviceId=${deviceId} `);
-            let ack;
-            if(typeof params[params.length-1] === 'function') {
-                ack = params.pop();
-                if(params.length === 1) {
-                    params =params[0];
-                }
-            }
-            NodeClient.sendRequest({method: method, to: deviceId, payload: params}, ack ? function(data){
-                ack(data);
-            } :  null);
+        client.on('execNodeMethod', (payload, cb) => {
+            let method = payload.method
+            let deviceId = payload.to
+            let params = payload.params
+            console.log(`Received execNodeMethod method: ${method} to deviceId=${deviceId} `);
+            NodeClient.execNodeMethod(deviceId, method, params,cb ? function(data){
+                cb(data)
+            } :  null)
         });
 
         client.on('setConnection',(conn, ack)=>{
@@ -38,7 +37,9 @@ module.exports =  {
             ack(conn);
         });
 
-        client.on('readConfig',(module, file, ack)=>{
+        client.on('readConfig',(params, ack)=>{
+            let module = params.module
+            let file = params.file
             let res = NodeClient.readConfig(module, file)
             ack(res);
         });
@@ -60,12 +61,36 @@ module.exports =  {
             });
         });
 
-        ss(client).on('requestDeviceStream',(method, stream, deviceId, params, ack)=>{
-            NodeClient.sendStreamRequest(stream, method, deviceId, params, ack);
+        ss(client).on('execNodeStream',(method, stream, deviceId, params, ack)=>{
+            if(deviceId == NodeClient.deviceId) {
+                try {
+                    console.log(`Received execNodeStream ${method}`)
+                    let fn = global[method]
+                    if(!fn) {
+                        fn = NodeClient.methods[method]
+                    }
+                    if(typeof fn !== 'function') {
+                        console.log(`Method ${method} not found`);
+                        ack({error:{message:`Method ${method} not found`, code:'DEVICE_METHOD_NOT_FOUND'}});
+                        return;
+                    }
+                    ack(fn(stream, params, ack));
+                } catch(e) {
+                    let res = {error:{message:e.message, stack:e.stack, code:'DEVICE_METHOD_ERROR'}};
+                    ack(res);
+                }
+            } else {
+                //send to remote device
+                NodeClient.execNodeStream(stream, method, deviceId, params, ack);
+            }
         });
 
-        this.requestDeviceStream(client, 'listClients');
-        this.requestDeviceStream(client, 'getWorkers');
+        ss(client).on('requestClientStream',(method, stream, params, ack)=>{
+            NodeClient.execNodeStream(stream, method, params, ack)
+        });
+
+        this.execNodeStream(client, 'listClients');
+        this.execNodeStream(client, 'getWorkers');
 
         client.on('getUrl', (url, ack)=> {
             console.log('call getUrl', url)
@@ -74,25 +99,38 @@ module.exports =  {
             });
         });
 
-        client.on('execClientMethod', (method, params, ack)=> {
+        client.on('execClientMethod', (payload, ack)=> {
+            let method = payload.method
+            let params = payload.params
             let fn = global[method]
             if(typeof fn !== "undefined") {
                 const isAsync = (fn.constructor.name === "AsyncFunction");
                 if(isAsync) {
+                    new Promise(async resolve => {
                     let res = global[method](params)
+                        resolve(res)
+                    }).then(res=>{
                     ack(res)
+                    })
                 } else {
                     global[method](params, ack)
                 }
+            } else {
+                ack({error:{message: `Client method ${method} not found`, status: 'CLIENT_METHOD_NOT_FOUND'}})
             }
+        });
+
+        client.on('socketEmit', (params, ack)=> {
+            console.log('socketEmit', params)
+            NodeClient.emit('execNodeMethod', params, ack)
         })
     },
 
 
 
-    requestDeviceStream(client, method) {
+    execNodeStream(client, method) {
         ss(client).on(method,(stream, deviceId, params, ack)=>{
-            NodeClient.sendStreamRequest(stream, method, deviceId, params, ack);
+            NodeClient.execNodeStream(stream, method, deviceId, params, ack);
         });
     }
 }
