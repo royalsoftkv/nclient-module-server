@@ -2,6 +2,7 @@ const NodeClient = require('nclient-lib')
 const express = require('express')
 const clientRegistry  = require("./clientRegistry")
 const socketHandler = require("./socketHandler")
+const bodyParser = require('body-parser')
 
 module.exports = {
     moduleInfo: NodeClient.readModuleInfo(require('./package.json')),
@@ -14,7 +15,13 @@ module.exports = {
 const app = express()
 const server = require('http').createServer(app)
 const io = require('socket.io').listen(server)
-server.listen(3000)
+let port = process.env.PORT || 3000
+server.listen(port)
+
+app.use( bodyParser.json() );       // to support JSON-encoded bodies
+app.use(bodyParser.urlencoded({     // to support URL-encoded bodies
+    extended: true
+}));
 
 server.on('listening', () => {
     console.log(`Started server`,server.address())
