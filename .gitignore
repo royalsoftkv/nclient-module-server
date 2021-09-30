@@ -4,3 +4,5 @@
 /nclient-module-server.tgz
 /nclient-module-server-1.0.14.tgz
 /nclient-module-server-1.0.16.tgz
+/build.sh
+/increase_version.js
